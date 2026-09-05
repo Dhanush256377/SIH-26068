@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WeatherGPT India - Register</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font-family:Arial,sans-serif;background:linear-gradient(135deg,#07111f,#102b4d);color:#fff;display:flex;align-items:center;justify-content:center;padding:20px}
+.card{width:min(430px,100%);background:rgba(15,27,45,.96);border:1px solid rgba(255,255,255,.12);border-radius:24px;padding:34px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.logo{text-align:center;font-size:42px}.title{text-align:center;margin:8px 0 4px}.sub{text-align:center;color:#9fb0c6;margin-bottom:28px}
+label{display:block;margin:15px 0 7px;font-weight:bold}input{width:100%;padding:13px 14px;border-radius:12px;border:1px solid #40536d;background:#0b1728;color:#fff;font-size:15px}
+.password{position:relative}.password button{position:absolute;right:6px;top:6px;border:0;background:transparent;color:#9fb0c6;padding:8px;cursor:pointer}
+button.primary{width:100%;margin-top:22px;padding:14px;border:0;border-radius:12px;background:#38bdf8;color:#06111d;font-weight:bold;font-size:16px;cursor:pointer}
+.link{display:block;text-align:center;margin-top:18px;color:#67d5ff;cursor:pointer}.message{margin-top:16px;padding:11px;border-radius:10px;display:none;text-align:center}
+.error{background:rgba(239,68,68,.15);color:#ff9b9b}.success{background:rgba(34,197,94,.15);color:#8ff0ad}
+.back{text-align:center;margin-top:22px}.back a{color:#9fb0c6;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">🌦️</div>
+  <h1 class="title">Create Account</h1>
+  <div class="sub">Join WeatherGPT India</div>
+
+  <form id="registerForm">
+    <label>Name</label>
+    <input id="name" type="text" placeholder="Enter your name" required>
+
+    <label>Email</label>
+    <input id="email" type="email" placeholder="Enter your email" required>
+
+    <label>Password</label>
+    <div class="password">
+      <input id="password" type="password" placeholder="At least 6 characters" required minlength="6">
+      <button type="button" onclick="togglePassword('password')">👁️</button>
+    </div>
+
+    <label>Confirm Password</label>
+    <div class="password">
+      <input id="confirmPassword" type="password" placeholder="Re-enter password" required>
+      <button type="button" onclick="togglePassword('confirmPassword')">👁️</button>
+    </div>
+
+    <button class="primary" type="submit">📝 Create Account</button>
+  </form>
+
+  <div id="message" class="message"></div>
+  <div class="link" onclick="goLogin()">Already have an account? Login</div>
+  <div class="back"><a href="index.html">← Back to WeatherGPT</a></div>
+</div>
+
+<script>
+const API="http://127.0.0.1:8000";
+
+function togglePassword(id){
+  const p=document.getElementById(id);
+  p.type=p.type==="password"?"text":"password";
+}
+
+function showMessage(text,type){
+  const box=document.getElementById("message");
+  box.textContent=text;
+  box.className="message "+type;
+  box.style.display="block";
+}
+
+function goLogin(){
+  window.location.href="login.html";
+}
+
+document.getElementById("registerForm").addEventListener("submit",async(e)=>{
+  e.preventDefault();
+
+  const password=document.getElementById("password").value;
+  const confirm=document.getElementById("confirmPassword").value;
+
+  if(password!==confirm){
+    showMessage("Passwords do not match.","error");
+    return;
+  }
+
+  showMessage("Creating your account...","success");
+
+  try{
+    const response=await fetch(`${API}/auth/register`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      credentials:"include",
+      body:JSON.stringify({
+        name:document.getElementById("name").value.trim(),
+        email:document.getElementById("email").value.trim(),
+        password:password
+      })
+    });
+
+    const data=await response.json();
+
+    if(!response.ok){
+      throw new Error(data.detail||"Registration failed");
+    }
+
+    showMessage("Account created! Redirecting to login...","success");
+    setTimeout(()=>window.location.href="login.html",1000);
+
+  }catch(error){
+    showMessage(error.message||"Unable to connect to WeatherGPT.","error");
+  }
+});
+</script>
+</body>
+</html>
