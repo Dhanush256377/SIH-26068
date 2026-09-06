@@ -41,6 +41,9 @@ app.include_router(speech_router)
 @app.get("/")
 def home():
     return FileResponse("index.html")
+@app.get("/index.html")
+def index_html_page():
+    return FileResponse("index.html")
 @app.get("/login")
 def login_page():
     return FileResponse("login.html")
