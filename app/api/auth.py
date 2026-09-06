@@ -140,8 +140,8 @@ def create_session(response, user):
         key="weathergpt_session",
         value=session_data,
         httponly=True,
-        samesite="lax",
-        secure=False,
+        samesite="none",
+        secure=True,
         max_age=60 * 60 * 24 * 7
     )
 
