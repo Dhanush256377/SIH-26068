@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.auth import router as auth_router
 from app.api.weather import router as weather_router
@@ -37,10 +38,15 @@ app.include_router(speech_router)
 
 @app.get("/")
 def home():
-    return {
-        "message": "Welcome to WeatherGPT India!"
-    }
+    return FileResponse("index.html")
+@app.get("/login")
+def login_page():
+    return FileResponse("login.html")
 
+
+@app.get("/register")
+def register_page():
+    return FileResponse("register.html")
 
 @app.get("/health")
 def health():
