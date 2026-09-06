@@ -44,8 +44,17 @@ def login_page():
     return FileResponse("login.html")
 
 
+@app.get("/login.html")
+def login_html_page():
+    return FileResponse("login.html")
+
 @app.get("/register")
 def register_page():
+    return FileResponse("register.html")
+
+
+@app.get("/register.html")
+def register_html_page():
     return FileResponse("register.html")
 
 @app.get("/health")
