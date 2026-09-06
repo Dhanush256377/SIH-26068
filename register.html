@@ -9,7 +9,34 @@
     * {
       box-sizing: border-box
     }
+button.primary {
+  display: block;
+  width: 100%;
+  margin-top: 24px;
+  padding: 14px 16px;
+  border: none;
+  border-radius: 12px;
+  background: #38bdf8;
+  color: #06111d;
+  font-weight: bold;
+  font-size: 16px;
+  cursor: pointer;
+  text-align: center;
+  transition: .25s ease;
+}
 
+button.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(56, 189, 248, .25);
+}
+
+button.primary:active {
+  transform: translateY(0);
+}
+
+.password input {
+  padding-right: 58px;
+}
     body {
       margin: 0;
       min-height: 100vh;
@@ -134,41 +161,55 @@
     <div class="logo">🌦️</div>
     <h1 class="title">Create Account</h1>
     <div class="sub">Join WeatherGPT India</div>
+<form id="registerForm" autocomplete="off">
 
-    <form id="registerForm" autocomplete="off"></form>
-      <label>Name</label>
-      <input
+  <label>Name</label>
+  <input
     id="username"
     type="text"
-    name="new-username"
     placeholder="Enter your username"
-    autocomplete="new-username"
+    autocomplete="off"
     required
->
+  >
 
-      <label>Email</label>
-      <input
+  <label>Email</label>
+  <input
     id="email"
     type="email"
-    name="new-email"
     placeholder="Enter your email"
-    autocomplete="new-email"
+    autocomplete="off"
     required
->
-      <label>Password</label>
-      <div class="password">
-        <input id="password" type="password" placeholder="At least 6 characters" required minlength="6">
-        <button type="button" onclick="togglePassword('password')">👁️</button>
-      </div>
+  >
 
-      <label>Confirm Password</label>
-      <div class="password">
-        <input id="confirmPassword" type="password" placeholder="Re-enter password" required>
-        <button type="button" onclick="togglePassword('confirmPassword')">👁️</button>
-      </div>
+  <label>Password</label>
+  <div class="password">
+    <input
+      id="password"
+      type="password"
+      placeholder="At least 6 characters"
+      autocomplete="new-password"
+      required
+      minlength="6"
+    >
+    <button type="button" onclick="togglePassword('password')">👁️</button>
+  </div>
 
-      <button class="primary" type="submit">📝 Create Account</button>
-    </form>
+  <label>Confirm Password</label>
+  <div class="password">
+    <input
+      id="confirmPassword"
+      type="password"
+      placeholder="Re-enter password"
+      autocomplete="new-password"
+      required
+    >
+    <button type="button" onclick="togglePassword('confirmPassword')">👁️</button>
+  </div>
+
+  <button class="primary" type="submit">📝 Create Account</button>
+
+</form>
+  
 
     <div id="message" class="message"></div>
     <div class="link" onclick="goLogin()">Already have an account? Login</div>
@@ -213,7 +254,7 @@
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({
-            name: document.getElementById("name").value.trim(),
+           name: document.getElementById("username").value.trim(),
             email: document.getElementById("email").value.trim(),
             password: password
           })

@@ -1,100 +1,247 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WeatherGPT India - Login</title>
-<style>
-*{box-sizing:border-box}
-body{margin:0;min-height:100vh;font-family:Arial,sans-serif;background:linear-gradient(135deg,#07111f,#102b4d);color:#fff;display:flex;align-items:center;justify-content:center;padding:20px}
-.card{width:min(430px,100%);background:rgba(15,27,45,.96);border:1px solid rgba(255,255,255,.12);border-radius:24px;padding:34px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
-.logo{text-align:center;font-size:42px}.title{text-align:center;margin:8px 0 4px}.sub{text-align:center;color:#9fb0c6;margin-bottom:28px}
-label{display:block;margin:15px 0 7px;font-weight:bold}input{width:100%;padding:13px 14px;border-radius:12px;border:1px solid #40536d;background:#0b1728;color:#fff;font-size:15px}
-.password{position:relative}.password button{position:absolute;right:6px;top:6px;border:0;background:transparent;color:#9fb0c6;padding:8px;cursor:pointer}
-button.primary{width:100%;margin-top:22px;padding:14px;border:0;border-radius:12px;background:#38bdf8;color:#06111d;font-weight:bold;font-size:16px;cursor:pointer}
-.link{display:block;text-align:center;margin-top:18px;color:#67d5ff;cursor:pointer}.message{margin-top:16px;padding:11px;border-radius:10px;display:none;text-align:center}
-.error{background:rgba(239,68,68,.15);color:#ff9b9b}.success{background:rgba(34,197,94,.15);color:#8ff0ad}
-.back{text-align:center;margin-top:22px}.back a{color:#9fb0c6;text-decoration:none}
-</style>
-</head>
-<body>
-<div class="card">
-  <div class="logo">🌦️</div>
-  <h1 class="title">WeatherGPT India</h1>
-  <div class="sub">Sign in to your weather dashboard</div>
 
-  <form id="loginForm">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WeatherGPT India - Login</title>
+  <style>
+    * {
+      box-sizing: border-box
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #07111f, #102b4d);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px
+    }
+
+    .card {
+      width: min(430px, 100%);
+      background: rgba(15, 27, 45, .96);
+      border: 1px solid rgba(255, 255, 255, .12);
+      border-radius: 24px;
+      padding: 34px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, .35)
+    }
+
+    .logo {
+      text-align: center;
+      font-size: 42px
+    }
+
+    .title {
+      text-align: center;
+      margin: 8px 0 4px
+    }
+
+    .sub {
+      text-align: center;
+      color: #9fb0c6;
+      margin-bottom: 28px
+    }
+
+    label {
+      display: block;
+      margin: 15px 0 7px;
+      font-weight: bold
+    }
+
+    input {
+      width: 100%;
+      padding: 13px 14px;
+      border-radius: 12px;
+      border: 1px solid #40536d;
+      background: #0b1728;
+      color: #fff;
+      font-size: 15px
+    }
+
+    .password {
+      position: relative
+    }
+
+    .password button {
+      position: absolute;
+      right: 8px;
+      top: 7px;
+      width: 42px;
+      height: 42px;
+      border: 0;
+      border-radius: 12px;
+      background: rgba(56, 189, 248, .10);
+      color: #67d5ff;
+      cursor: pointer;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: .25s ease;
+    }
+
+    .password button:hover {
+      background: rgba(56, 189, 248, .22);
+      transform: scale(1.06);
+    }
+
+    .password button:active {
+      transform: scale(.95);
+    }
+
+    #eyeIcon {
+      transition: .25s ease;
+    }
+
+    .link {
+      display: block;
+      text-align: center;
+      margin-top: 18px;
+      color: #67d5ff;
+      cursor: pointer
+    }
+
+    .message {
+      margin-top: 16px;
+      padding: 11px;
+      border-radius: 10px;
+      display: none;
+      text-align: center
+    }
+
+    .error {
+      background: rgba(239, 68, 68, .15);
+      color: #ff9b9b
+    }
+
+    .success {
+      background: rgba(34, 197, 94, .15);
+      color: #8ff0ad
+    }
+
+    .back {
+      text-align: center;
+      margin-top: 22px
+    }
+
+    .back a {
+      color: #9fb0c6;
+      text-decoration: none
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <div class="logo">🌦️</div>
+    <h1 class="title">WeatherGPT India</h1>
+    <div class="sub">Sign in to your weather dashboard</div>
+
+    <form id="loginForm" autocomplete="off"></form>
     <label>Email</label>
-    <input id="email" type="email" placeholder="Enter your email" required>
+   <input
+    id="email"
+    type="email"
+    name="login-email"
+    placeholder="Enter your email"
+    autocomplete="off"
+    required
+>
 
     <label>Password</label>
     <div class="password">
-      <input id="password" type="password" placeholder="Enter your password" required>
-      <button type="button" onclick="togglePassword()">👁️</button>
+     <input
+    id="password"
+    type="password"
+    name="login-password"
+    placeholder="Enter your password"
+    autocomplete="new-password"
+    required
+>
+      <button type="button" class="watch-btn" onclick="togglePassword()" id="toggleBtn" title="Show password">
+        <span id="eyeIcon">◉</span>
+      </button>
     </div>
 
     <button class="primary" type="submit">🔐 Login</button>
-  </form>
+    </form>
 
-  <div id="message" class="message"></div>
-  <div class="link" onclick="goRegister()">Don't have an account? Create one</div>
-  <div class="back"><a href="WeatherGPT_India_Pages_FullCalendar.html">← Back to WeatherGPT</a></div>
-</div>
+    <div id="message" class="message"></div>
+    <div class="link" onclick="goRegister()">Don't have an account? Create one</div>
+    <div class="back"><a href="WeatherGPT_India_Pages_FullCalendar.html">← Back to WeatherGPT</a></div>
+  </div>
 
-<script>
-const API="http://127.0.0.1:8000";
+  <script>
+    const API = "https://weather-gpt-1.onrender.com";
 
-function togglePassword(){
-  const p=document.getElementById("password");
-  p.type=p.type==="password"?"text":"password";
-}
+   function togglePassword(){
+  const p = document.getElementById("password");
+  const btn = document.getElementById("toggleBtn");
+  const icon = document.getElementById("eyeIcon");
 
-function showMessage(text,type){
-  const box=document.getElementById("message");
-  box.textContent=text;
-  box.className="message "+type;
-  box.style.display="block";
-}
-
-function goRegister(){
-  window.location.href="register.html";
-}
-
-document.getElementById("loginForm").addEventListener("submit",async(e)=>{
-  e.preventDefault();
-  showMessage("Logging in...","success");
-
-  try{
-    const response=await fetch(`${API}/auth/login`,{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      credentials:"include",
-      body:JSON.stringify({
-        email:document.getElementById("email").value.trim(),
-        password:document.getElementById("password").value
-      })
-    });
-
-    const data=await response.json();
-
-    if(!response.ok){
-      throw new Error(data.detail||"Login failed");
-    }
-
-    // Save the logged-in user's basic profile for the dashboard.
-    if (data.user) {
-      localStorage.setItem("weathergpt_user", JSON.stringify(data.user));
-    }
-
-    showMessage("Login successful! Opening WeatherGPT...","success");
-    setTimeout(()=>{
-      window.location.href="index.html";
-    },700);
-
-  }catch(error){
-    showMessage(error.message||"Unable to connect to WeatherGPT.","error");
+  if(p.type === "password"){
+    p.type = "text";
+    icon.textContent = "◉";
+    btn.title = "Hide password";
+  }else{
+    p.type = "password";
+    icon.textContent = "◌";
+    btn.title = "Show password";
   }
-});
-</script>
+}
+
+    function showMessage(text, type) {
+      const box = document.getElementById("message");
+      box.textContent = text;
+      box.className = "message " + type;
+      box.style.display = "block";
+    }
+
+    function goRegister() {
+      window.location.href = "register.html";
+    }
+
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      showMessage("Logging in...", "success");
+
+      try {
+        const response = await fetch(`${API}/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            email: document.getElementById("email").value.trim(),
+            password: document.getElementById("password").value
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || "Login failed");
+        }
+
+        // Save the logged-in user's basic profile for the dashboard.
+        if (data.user) {
+          localStorage.setItem("weathergpt_user", JSON.stringify(data.user));
+        }
+
+        showMessage("Login successful! Opening WeatherGPT...", "success");
+        setTimeout(() => {
+          window.location.href = "index.html";
+        }, 700);
+
+      } catch (error) {
+        showMessage(error.message || "Unable to connect to WeatherGPT.", "error");
+      }
+    });
+  </script>
 </body>
+
 </html>

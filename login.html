@@ -98,6 +98,35 @@
       transition: .25s ease;
     }
 
+    button.primary {
+      display: block;
+      width: 100%;
+      margin-top: 24px;
+      padding: 14px 16px;
+      border: none;
+      border-radius: 12px;
+      background: #38bdf8;
+      color: #06111d;
+      font-weight: bold;
+      font-size: 16px;
+      cursor: pointer;
+      text-align: center;
+      transition: .25s ease;
+    }
+
+    button.primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(56, 189, 248, .25);
+    }
+
+    button.primary:active {
+      transform: translateY(0);
+    }
+
+    .password input {
+      padding-right: 58px;
+    }
+
     .link {
       display: block;
       text-align: center;
@@ -141,43 +170,66 @@
     <div class="logo">🌦️</div>
     <h1 class="title">WeatherGPT India</h1>
     <div class="sub">Sign in to your weather dashboard</div>
-    <form id="loginForm" autocomplete="off">
-      <label>Email</label>
-      <input id="email" type="email" placeholder="Enter your email" autocomplete="off" required>
-      <label>Password</label>
-      <div class="password">
-        <input id="password" type="password" placeholder="Enter your password" autocomplete="new-password" required>
-        <button type="button" class="watch-btn" onclick="togglePassword()" id="toggleBtn" title="Show password">
-          <span id="eyeIcon">◉</span>
-        </button>
-      </div>
+   <form id="loginForm" autocomplete="off">
 
-      <button class="primary" type="submit">🔐 Login</button>
-    </form>
+  <label>Email</label>
+  <input
+    id="email"
+    type="email"
+    placeholder="Enter your email"
+    autocomplete="off"
+    required
+  >
+
+  <label>Password</label>
+
+  <div class="password">
+    <input
+      id="password"
+      type="password"
+      placeholder="Enter your password"
+      autocomplete="new-password"
+      required
+    >
+
+    <button
+      type="button"
+      class="watch-btn"
+      onclick="togglePassword()"
+      id="toggleBtn"
+      title="Show password"
+    >
+      <span id="eyeIcon">◉</span>
+    </button>
+  </div>
+
+  <button class="primary" type="submit">🔐 Login</button>
+
+</form>
 
     <div id="message" class="message"></div>
     <div class="link" onclick="goRegister()">Don't have an account? Create one</div>
-    <div class="back"><a href="WeatherGPT_India_Pages_FullCalendar.html">← Back to WeatherGPT</a></div>
+    <div class="back"><a href="index.html">← Back to WeatherGPT</a></div>
   </div>
 
   <script>
     const API = "https://weather-gpt-1.onrender.com";
 
-   function togglePassword(){
-  const p = document.getElementById("password");
-  const btn = document.getElementById("toggleBtn");
-  const icon = document.getElementById("eyeIcon");
+    function togglePassword() {
+      const p = document.getElementById("password");
+      const btn = document.getElementById("toggleBtn");
+      const icon = document.getElementById("eyeIcon");
 
-  if(p.type === "password"){
-    p.type = "text";
-    icon.textContent = "◉";
-    btn.title = "Hide password";
-  }else{
-    p.type = "password";
-    icon.textContent = "◌";
-    btn.title = "Show password";
-  }
-}
+      if (p.type === "password") {
+        p.type = "text";
+        icon.textContent = "◉";
+        btn.title = "Hide password";
+      } else {
+        p.type = "password";
+        icon.textContent = "◌";
+        btn.title = "Show password";
+      }
+    }
 
     function showMessage(text, type) {
       const box = document.getElementById("message");
