@@ -8,14 +8,28 @@ router = APIRouter(prefix="/alerts", tags=["Alerts"])
 @router.get("/")
 def alerts(latitude: float, longitude: float):
 
-    weather = get_weather(latitude, longitude)
+    weather = get_weather(
+        latitude,
+        longitude
+    )
 
-    if "error" in weather:
-        return weather
+    if weather.get("error"):
+        return {
+            "error": weather["error"],
+            "alerts": []
+        }
 
-    alerts = generate_alerts(weather)
+    alert_weather = {
+        "temperature": weather.get("temperature"),
+        "wind_speed": weather.get("wind_speed"),
+        "rain": weather.get("rain"),
+        "precipitation": weather.get("precipitation"),
+        "humidity": weather.get("humidity"),
+        "weather_code": weather.get("weather_code")
+    }
 
     return {
-        "alerts": alerts,
-        "weather": weather
+        "latitude": latitude,
+        "longitude": longitude,
+        "alerts": generate_alerts(alert_weather)
     }

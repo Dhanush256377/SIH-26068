@@ -39,7 +39,6 @@ def search_location(city):
         "results": locations
     }
 
-
 def get_location(latitude, longitude):
 
     url = "https://nominatim.openstreetmap.org/reverse"
@@ -47,17 +46,20 @@ def get_location(latitude, longitude):
     params = {
         "lat": latitude,
         "lon": longitude,
-        "format": "json"
+        "format": "json",
+        "zoom": 10,
+        "addressdetails": 1
     }
 
     headers = {
-        "User-Agent": "WeatherGPT India"
+        "User-Agent": "WeatherGPT India/1.0"
     }
 
     response = requests.get(
         url,
         params=params,
-        headers=headers
+        headers=headers,
+        timeout=10
     )
 
     if response.status_code != 200:
@@ -66,17 +68,33 @@ def get_location(latitude, longitude):
         }
 
     data = response.json()
-
     address = data.get("address", {})
 
-    return {
-        "city": address.get("city")
+    city = (
+        address.get("city")
         or address.get("town")
-        or address.get("village"),
+        or address.get("municipality")
+        or address.get("city_district")
+        or address.get("village")
+        or address.get("suburb")
+        or address.get("county")
+        or "Current Location"
+    )
 
-        "district": address.get("county"),
+    district = (
+        address.get("county")
+        or address.get("state_district")
+        or address.get("city_district")
+        or ""
+    )
 
-        "state": address.get("state"),
+    state = address.get("state") or ""
 
-        "country": address.get("country")
+    country = address.get("country") or "India"
+
+    return {
+        "city": city,
+        "district": district,
+        "state": state,
+        "country": country
     }
