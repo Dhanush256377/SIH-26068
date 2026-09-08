@@ -6000,9 +6000,9 @@ body>.container>.empty,.container .spacer:empty{display:none!important;}
 
     <script>
 
-
-        const API =
-            "http://127.0.0.1:8000";
+const API =
+    "https://weather-gpt-1.onrender.com";
+       
 
         /* PROFILE & LOGOUT */
         function loadLoggedInProfile() {
@@ -6794,172 +6794,140 @@ function getLocation() {
 
         /* CURRENT WEATHER */
 
-        async function loadWeather() {
+async function loadWeather() {
 
-            try {
+    if (latitude === null || longitude === null) {
+        return;
+    }
 
-                const response =
-                    await fetch(
-                        `${API}/weather/?latitude=${latitude}&longitude=${longitude}`
-                    );
+    try {
 
+        const url =
+            `${API}/weather/?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}`;
 
-                const data =
-                    await response.json();
+        const response = await fetch(url, {
+            method: "GET",
+            cache: "no-store"
+        });
 
-
-                if (data.error) {
-
-                    return;
-
-                }
-
-
-                currentWeather =
-                    data;
-
-
-                document.getElementById(
-                    "temperature"
-                ).textContent =
-                    Math.round(
-                        data.temperature
-                    ) + "°";
-
-
-                document.getElementById(
-                    "feelsLike"
-                ).textContent =
-                    Math.round(
-                        data.feels_like
-                    );
-
-
-                document.getElementById(
-                    "humidity"
-                ).textContent =
-                    data.humidity;
-
-
-                document.getElementById(
-                    "wind"
-                ).textContent =
-                    Math.round(
-                        data.wind_speed
-                    );
-
-
-                document.getElementById(
-                    "windGust"
-                ).textContent =
-                    Math.round(
-                        data.wind_gust
-                    );
-
-
-                document.getElementById(
-                    "cloudCover"
-                ).textContent =
-                    data.cloud_cover;
-
-
-                document.getElementById(
-                    "rainNow"
-                ).textContent =
-                    data.rain;
-
-
-                document.getElementById(
-                    "precipitation"
-                ).textContent =
-                    data.precipitation;
-
-
-                document.getElementById(
-                    "windDirection"
-                ).textContent =
-                    Math.round(
-                        data.wind_direction
-                    );
-
-
-                const daily =
-                    data.daily;
-
-
-                document.getElementById(
-                    "rain"
-                ).textContent =
-                    daily.precipitation_probability_max[0] || 0;
-
-
-                document.getElementById(
-                    "todayRange"
-                ).textContent =
-                    `${Math.round(daily.temperature_2m_min[0])}° / ${Math.round(daily.temperature_2m_max[0])}°`;
-
-
-                document.getElementById(
-                    "weatherIcon"
-                ).textContent =
-                    weatherIcon(
-                        data.weather_code
-                    );
-
-
-                document.getElementById(
-                    "condition"
-                ).textContent =
-                    weatherDescription(
-                        data.weather_code
-                    );
-
-
-                document.getElementById(
-                    "updateTime"
-                ).textContent =
-                    "Updated: " +
-                    new Date(
-                        data.hourly.time[0]
-                    ).toLocaleString(
-                        "en-IN"
-                    );
-
-
-                document.getElementById(
-                    "sunrise"
-                ).textContent =
-                    formatTime(
-                        daily.sunrise[0]
-                    );
-
-
-                document.getElementById(
-                    "sunset"
-                ).textContent =
-                    formatTime(
-                        daily.sunset[0]
-                    );
-
-
-                loadHourly(
-                    data.hourly
-                );
-
-            }
-
-            catch (error) {
-
-                console.log(
-                    "Weather error:",
-                    error
-                );
-
-            }
-
+        if (!response.ok) {
+            throw new Error(
+                `Weather API returned HTTP ${response.status}`
+            );
         }
 
+        const data = await response.json();
 
+        if (!data || data.error) {
+            throw new Error(
+                data?.error || "Weather data unavailable"
+            );
+        }
+
+        currentWeather = data;
+
+        document.getElementById("temperature").textContent =
+            Number.isFinite(Number(data.temperature))
+                ? Math.round(Number(data.temperature)) + "°"
+                : "--";
+
+        document.getElementById("feelsLike").textContent =
+            Number.isFinite(Number(data.feels_like))
+                ? Math.round(Number(data.feels_like))
+                : "--";
+
+        document.getElementById("humidity").textContent =
+            Number.isFinite(Number(data.humidity))
+                ? data.humidity
+                : "--";
+
+        document.getElementById("wind").textContent =
+            Number.isFinite(Number(data.wind_speed))
+                ? Math.round(Number(data.wind_speed))
+                : "--";
+
+        document.getElementById("windGust").textContent =
+            Number.isFinite(Number(data.wind_gust))
+                ? Math.round(Number(data.wind_gust))
+                : "--";
+
+        document.getElementById("cloudCover").textContent =
+            Number.isFinite(Number(data.cloud_cover))
+                ? data.cloud_cover
+                : "--";
+
+        document.getElementById("rainNow").textContent =
+            Number.isFinite(Number(data.rain))
+                ? data.rain
+                : "--";
+
+        document.getElementById("precipitation").textContent =
+            Number.isFinite(Number(data.precipitation))
+                ? data.precipitation
+                : "--";
+
+        document.getElementById("windDirection").textContent =
+            Number.isFinite(Number(data.wind_direction))
+                ? Math.round(Number(data.wind_direction))
+                : "--";
+
+        const daily = data.daily || {};
+
+        document.getElementById("rain").textContent =
+            daily.precipitation_probability_max?.[0] ?? 0;
+
+        if (
+            Array.isArray(daily.temperature_2m_min) &&
+            Array.isArray(daily.temperature_2m_max)
+        ) {
+            document.getElementById("todayRange").textContent =
+                `${Math.round(daily.temperature_2m_min[0])}° / ${Math.round(daily.temperature_2m_max[0])}°`;
+        }
+
+        document.getElementById("weatherIcon").textContent =
+            weatherIcon(data.weather_code);
+
+        document.getElementById("condition").textContent =
+            weatherDescription(data.weather_code);
+
+        if (data.hourly?.time?.length) {
+            document.getElementById("updateTime").textContent =
+                "Updated: " +
+                new Date(data.hourly.time[0]).toLocaleString("en-IN");
+        }
+
+        if (daily.sunrise?.[0]) {
+            document.getElementById("sunrise").textContent =
+                formatTime(daily.sunrise[0]);
+        }
+
+        if (daily.sunset?.[0]) {
+            document.getElementById("sunset").textContent =
+                formatTime(daily.sunset[0]);
+        }
+
+        loadHourly(data.hourly || {});
+
+    } catch (error) {
+
+        console.error("Weather error:", error);
+
+        document.getElementById("temperature").textContent = "--";
+        document.getElementById("feelsLike").textContent = "--";
+        document.getElementById("humidity").textContent = "--";
+        document.getElementById("wind").textContent = "--";
+        document.getElementById("windGust").textContent = "--";
+        document.getElementById("cloudCover").textContent = "--";
+        document.getElementById("rainNow").textContent = "--";
+        document.getElementById("precipitation").textContent = "--";
+
+        document.getElementById("condition").textContent =
+            "Unable to load weather";
+
+        document.getElementById("updateTime").textContent =
+            "Weather service unavailable";
+    }
+}
 
         /* HOURLY */
 
@@ -7377,307 +7345,363 @@ function getLocation() {
 
 
         /* MAP WEATHER */
+ async function loadMapWeather(lat, lon) {
 
-        async function loadMapWeather(
-            lat,
-            lon
-        ) {
+    const box = document.getElementById("mapWeather");
 
-            const box =
-                document.getElementById(
-                    "mapWeather"
-                );
+    if (!box || !weatherMap) return;
 
-            if (!box || !weatherMap) return;
+    lat = Number(lat);
+    lon = Number(lon);
 
-            lat = Number(lat);
-            lon = Number(lon);
-            if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-                box.innerHTML = "<p>Invalid map location.</p>";
-                return;
-            }
+    if (
+        !Number.isFinite(lat) ||
+        !Number.isFinite(lon) ||
+        lat < -90 ||
+        lat > 90 ||
+        lon < -180 ||
+        lon > 180
+    ) {
+        box.innerHTML = "<p>Invalid map location.</p>";
+        return;
+    }
 
-            box.innerHTML =
-                `<div class="loading">
-
+    box.innerHTML = `
+        <div class="loading">
             <span class="spinner"></span>
+            Loading live weather...
+        </div>
+    `;
 
-            Loading weather...
+    // Update marker
+    if (mapMarker) {
+        weatherMap.removeLayer(mapMarker);
+    }
 
-        </div>`;
+    mapMarker = L.marker([lat, lon])
+        .addTo(weatherMap);
 
+    try {
 
-            if (mapMarker) {
+        /*
+         * ---------------------------------------------------------
+         * 1. GET WEATHER FIRST
+         * ---------------------------------------------------------
+         */
 
-                weatherMap.removeLayer(
-                    mapMarker
-                );
+        const weatherUrl =
+            `${API}/weather/?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}`;
 
-            }
+        const response = await fetch(weatherUrl, {
+            method: "GET",
+            cache: "no-store"
+        });
 
+        if (!response.ok) {
+            throw new Error(
+                `Weather API returned HTTP ${response.status}`
+            );
+        }
 
-            mapMarker =
-                L.marker(
-                    [lat, lon]
-                ).addTo(
-                    weatherMap
-                );
+        const data = await response.json();
 
+        if (!data || data.error) {
+            throw new Error(
+                data?.error || "Weather data unavailable"
+            );
+        }
 
-            try {
+        /*
+         * ---------------------------------------------------------
+         * 2. SAVE WEATHER IMMEDIATELY
+         *
+         * Location-name failure must NEVER destroy weather data.
+         * ---------------------------------------------------------
+         */
 
-                const response =
-                    await fetch(
-                        `${API}/weather/?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}`,
-                        { cache: "no-store" }
-                    );
+        mapCropLat = lat;
+        mapCropLon = lon;
+        mapCropWeather = data;
 
-                if (!response.ok) {
-                    throw new Error(`Weather API returned HTTP ${response.status}`);
+        /*
+         * ---------------------------------------------------------
+         * 3. GET LOCATION NAME SEPARATELY
+         * ---------------------------------------------------------
+         */
+
+        let place = "Selected Location";
+        let state = "";
+
+        try {
+
+            const cityResponse = await fetch(
+                `${API}/location/?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}`,
+                {
+                    cache: "no-store"
                 }
+            );
 
-                const data =
-                    await response.json();
-
-                if (data.error) {
-
-                    box.innerHTML =
-                        "<p>Unable to get weather.</p>";
-
-                    return;
-
-                }
-
-
-                const cityResponse =
-                    await fetch(
-                        `${API}/location/?latitude=${lat}&longitude=${lon}`
-                    );
-
+            if (cityResponse.ok) {
 
                 const location =
                     await cityResponse.json();
 
+                /*
+                 * Prefer the smallest useful locality.
+                 * This is important for Indian villages/towns.
+                 */
 
-                const place =
-                    location.city ||
-                    location.town ||
+                place =
                     location.village ||
+                    location.town ||
+                    location.city ||
                     location.suburb ||
+                    location.municipality ||
+                    location.neighbourhood ||
+                    location.locality ||
                     location.district ||
                     location.state ||
                     "Selected Location";
 
-                mapCropLat = lat;
-                mapCropLon = lon;
-                mapCropWeather = data;
-                mapCropPlace = place;
-                const cropLocationBox = document.getElementById('mapCropLocation');
-                if (cropLocationBox) {
-                    cropLocationBox.textContent = `📍 ${place} • ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
-                }
-                generateMapCropAdvice();
+                state =
+                    location.state ||
+                    "";
+            }
 
-                box.innerHTML = `
+        } catch (locationError) {
+
+            console.warn(
+                "Map location-name lookup failed:",
+                locationError
+            );
+
+            // Weather continues even when reverse geocoding fails.
+        }
+
+        /*
+         * ---------------------------------------------------------
+         * 4. FALLBACK LOCATION NAME
+         * ---------------------------------------------------------
+         */
+
+        mapCropPlace = state
+            ? `${place}, ${state}`
+            : place;
+
+        const cropLocationBox =
+            document.getElementById("mapCropLocation");
+
+        if (cropLocationBox) {
+
+            cropLocationBox.textContent =
+                `📍 ${mapCropPlace} • ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+        }
+
+        /*
+         * Generate crop advice without blocking weather display.
+         */
+
+        try {
+            generateMapCropAdvice();
+        } catch (adviceError) {
+            console.warn(
+                "Map crop advice error:",
+                adviceError
+            );
+        }
+
+        /*
+         * ---------------------------------------------------------
+         * 5. SAFELY READ WEATHER DATA
+         * ---------------------------------------------------------
+         */
+
+        const temperature =
+            Number.isFinite(Number(data.temperature))
+                ? Math.round(Number(data.temperature))
+                : "--";
+
+        const feelsLike =
+            Number.isFinite(Number(data.feels_like))
+                ? Math.round(Number(data.feels_like))
+                : "--";
+
+        const humidity =
+            Number.isFinite(Number(data.humidity))
+                ? data.humidity
+                : "--";
+
+        const wind =
+            Number.isFinite(Number(data.wind_speed))
+                ? Math.round(Number(data.wind_speed))
+                : "--";
+
+        const cloud =
+            Number.isFinite(Number(data.cloud_cover))
+                ? data.cloud_cover
+                : "--";
+
+        const daily =
+            data.daily || {};
+
+        const rainProbability =
+            daily.precipitation_probability_max?.[0] ?? 0;
+
+        const hourly =
+            data.hourly || {};
+
+        /*
+         * ---------------------------------------------------------
+         * 6. NEXT 6 HOURS
+         * ---------------------------------------------------------
+         */
+
+        const hourlyTimes =
+            Array.isArray(hourly.time)
+                ? hourly.time.slice(0, 6)
+                : [];
+
+        const hourlyCards =
+            hourlyTimes.map((t, i) => {
+
+                const temp =
+                    hourly.temperature_2m?.[i] ??
+                    data.temperature;
+
+                const rain =
+                    hourly.precipitation_probability?.[i] ??
+                    0;
+
+                return `
+                    <div style="
+                        padding:9px;
+                        border-radius:12px;
+                        background:rgba(255,255,255,.06);
+                        font-size:11px;
+                    ">
+                        <div>
+                            ${new Date(t).toLocaleTimeString(
+                                "en-IN",
+                                {
+                                    hour: "numeric",
+                                    minute: "2-digit"
+                                }
+                            )}
+                        </div>
+
+                        <b>
+                            ${Number.isFinite(Number(temp))
+                                ? Math.round(Number(temp))
+                                : "--"}°C
+                        </b>
+
+                        <div>
+                            🌧️ ${rain}%
+                        </div>
+                    </div>
+                `;
+            }).join("");
+
+        /*
+         * ---------------------------------------------------------
+         * 7. DISPLAY WEATHER
+         * ---------------------------------------------------------
+         */
+
+        box.innerHTML = `
 
             <h3>
-                📍 ${place}
+                📍 ${mapCropPlace}
             </h3>
 
             <div class="map-temperature">
-
-                ${Math.round(
-                    data.temperature
-                )}°C
-
+                ${temperature}°C
             </div>
 
             <p>
-
-                ${weatherIcon(
-                    data.weather_code
-                )}
-
-                ${weatherDescription(
-                    data.weather_code
-                )}
-
+                ${weatherIcon(data.weather_code)}
+                ${weatherDescription(data.weather_code)}
             </p>
 
             <p>
-
                 🥵 Feels like:
-                ${Math.round(
-                    data.feels_like
-                )}°C
-
+                ${feelsLike}°C
             </p>
 
             <p>
-
                 💧 Humidity:
-                ${data.humidity}%
-
+                ${humidity}%
             </p>
 
             <p>
-
                 💨 Wind:
-                ${Math.round(
-                    data.wind_speed
-                )} km/h
-
+                ${wind} km/h
             </p>
 
             <p>
-
                 🌧️ Rain:
-                ${data.daily
-                        .precipitation_probability_max[0] || 0}%
-
+                ${rainProbability}%
             </p>
 
             <p>
-
                 ☁️ Cloud:
-                ${data.cloud_cover}%
-
+                ${cloud}%
             </p>
 
             <div class="map-hourly-preview">
-                <strong>🔮 Next 6 hours</strong>
-                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;">
-                    ${(data.hourly?.time || []).slice(0, 6).map((t, i) => `
-                        <div style="padding:9px;border-radius:12px;background:rgba(255,255,255,.06);font-size:11px;">
-                            <div>${new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</div>
-                            <b>${Math.round(data.hourly.temperature_2m?.[i] ?? data.temperature)}°C</b>
-                            <div>🌧️ ${data.hourly.precipitation_probability?.[i] ?? 0}%</div>
-                        </div>`).join('')}
+
+                <strong>
+                    🔮 Next 6 hours
+                </strong>
+
+                <div style="
+                    display:grid;
+                    grid-template-columns:repeat(3,1fr);
+                    gap:8px;
+                    margin-top:10px;
+                ">
+                    ${hourlyCards}
                 </div>
+
             </div>
 
             <button
                 class="btn-primary"
                 style="width:100%;margin-top:12px;"
-                onclick="useMapLocation(${lat},${lon})">
-
+                onclick="useMapLocation(${lat},${lon})"
+            >
                 View Full Weather
-
             </button>
-
         `;
 
-            }
+    } catch (error) {
 
-            catch (error) {
+        console.error(
+            "Live map weather error:",
+            error
+        );
 
-                console.log(
-                    "Map weather error:",
-                    error
-                );
+        box.innerHTML = `
+            <div class="alert medium">
 
+                <strong>
+                    ⚠️ Weather temporarily unavailable
+                </strong>
 
-                box.innerHTML =
-                    "<p>Unable to load weather.</p>";
+                <p>
+                    Could not retrieve live weather for
+                    ${lat.toFixed(4)}, ${lon.toFixed(4)}.
+                </p>
 
-            }
+                <small>
+                    Try clicking the location again.
+                </small>
 
-        }
-
-
-
-        function getMapCropWeatherMetrics(data) {
-            const current = data?.current || data || {};
-            const daily = data?.daily || {};
-            const hourly = data?.hourly || {};
-            const rain12 = Math.max(...(hourly.precipitation_probability || []).slice(0, 12), Number(daily.precipitation_probability_max?.[0] || 0));
-            const rain24 = Math.max(...(hourly.precipitation_probability || []).slice(0, 24), Number(daily.precipitation_probability_max?.[0] || 0));
-            const temp = Number(current.temperature_2m ?? data?.temperature ?? 0);
-            const humidity = Number(current.relative_humidity_2m ?? data?.humidity ?? 0);
-            const wind = Number(current.wind_speed_10m ?? data?.wind_speed ?? 0);
-            const code = Number(current.weather_code ?? data?.weather_code ?? 0);
-            return {temp, humidity, wind, rain12, rain24, code};
-        }
-
-        async function generateMapCropAdvice() {
-            const box = document.getElementById('mapCropAdviceResult');
-            if (!box) return;
-
-            if (mapCropLat === null || mapCropLon === null) {
-                box.innerHTML = '<div class="ai-empty">Select a location on the map first. The advisor needs live weather for that location.</div>';
-                return;
-            }
-
-            const crop = document.getElementById('mapCropSelect')?.value || 'rice';
-            const stage = document.getElementById('mapCropStage')?.value || 'sowing';
-            box.innerHTML = '<div class="loading"><span class="spinner"></span> Loading live crop weather and forecast...</div>';
-
-            try {
-                const response = await fetch(`${API}/api/crop-advisor`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        latitude: Number(mapCropLat),
-                        longitude: Number(mapCropLon),
-                        crop: crop,
-                        growth_stage: stage
-                    }),
-                    cache: 'no-store'
-                });
-
-                const data = await response.json().catch(() => ({}));
-                if (!response.ok || data.success !== true) {
-                    throw new Error(data.detail || `Crop advisor failed (HTTP ${response.status})`);
-                }
-
-                const summary = data.weather_summary || {};
-                const advice = data.advice || {};
-                const risks = Array.isArray(data.risk_flags) ? data.risk_flags : [];
-                const num = value => Number.isFinite(Number(value)) ? Number(value) : null;
-                const esc = value => String(value ?? 'Not available').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-                const temp = num(summary.temperature_c);
-                const humidity = num(summary.humidity_pct);
-                const rain = num(summary.rain_probability_pct);
-                const rainAmount = num(summary.rain_amount_next_24h_mm);
-                const wind = num(summary.wind_kmh);
-                const gust = num(summary.wind_gust_kmh);
-                const disease = String(advice.disease_pressure || 'LOW');
-                const status = data.status_class || 'good';
-                const stageName = data.growth_stage_name || stage;
-
-                const riskText = risks.length ? risks.map(esc).join(' • ') : 'LOW_WEATHER_RISK';
-                const diseaseTone = disease === 'HIGH' ? 'danger' : disease === 'MODERATE' ? 'warning' : 'good';
-
-                box.innerHTML = `<div class="ai-advisory-card">
-                    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-                        <h3 style="margin:0;">🌾 ${esc(data.crop)} • ${esc(stageName)}</h3>
-                        <span class="section-subtitle">${esc(mapCropPlace)}</span>
-                    </div>
-                    <div class="crop-advice-grid">
-                        <div class="crop-advice-metric"><span>🌡️ Temperature</span><strong>${temp === null ? 'N/A' : temp.toFixed(1) + '°C'}</strong></div>
-                        <div class="crop-advice-metric"><span>💧 Humidity</span><strong>${humidity === null ? 'N/A' : Math.round(humidity) + '%'}</strong></div>
-                        <div class="crop-advice-metric"><span>🌧️ Rain next 24h</span><strong>${rain === null ? 'N/A' : Math.round(rain) + '%'}</strong></div>
-                        <div class="crop-advice-metric"><span>💨 Wind</span><strong>${wind === null ? 'N/A' : Math.round(wind) + ' km/h'}</strong></div>
-                    </div>
-                    <div class="crop-advice-status ${esc(status)}"><b>🌱 Recommendation:</b> ${esc(advice.recommendation)}</div>
-                    <div class="crop-advice-notes">
-                        <div>💧 <b>Irrigation:</b> ${esc(advice.irrigation)}</div>
-                        <div>🧴 <b>Spraying:</b> ${esc(advice.spraying)}</div>
-                        <div>🌧️ <b>Rain / waterlogging risk:</b> ${esc(advice.rain_waterlogging)}${rainAmount === null ? '' : ` • ${rainAmount.toFixed(1)} mm expected`}</div>
-                        <div>🌡️ <b>Heat / cold stress:</b> ${esc(advice.heat_cold_stress)}</div>
-                        <div class="crop-advice-status ${diseaseTone}"><b>🦠 Humidity / disease pressure: ${esc(disease)}</b> — ${esc(advice.disease_message)}</div>
-                        <div>💨 <b>Wind risk:</b> ${esc(advice.wind_risk)}${gust === null ? '' : ` • gust ${Math.round(gust)} km/h`}</div>
-                        <div>🌱 <b>Growth-stage advice:</b> ${esc(advice.stage_advice)}</div>
-                        <div>📌 <b>Crop-specific advice:</b> ${esc(data.crop_specific_note)}</div>
-                    </div>
-                    <div class="ai-source" style="margin-top:10px;">⚠️ Risk signals: ${riskText}. Weather-based decision support only; confirm field conditions and follow local agronomic and product-label guidance.</div>
-                </div>`;
-            } catch (error) {
-                console.error('Crop advisor error:', error);
-                box.innerHTML = `<div class="ai-advisory-card"><b>⚠️ Crop Advisor unavailable</b><p>${String(error.message || 'Could not load crop advice.')}</p><small>Check that the FastAPI backend is running and that <code>/api/crop-advisor</code> is reachable.</small></div>`;
-            }
-        }
-
+            </div>
+        `;
+    }
+}
+       
         /* USE MAP LOCATION */
 
         async function useMapLocation(

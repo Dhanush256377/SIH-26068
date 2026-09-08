@@ -1,20 +1,24 @@
-"""WeatherGPT AI provider service.
 
-Drop-in replacement for app/ai_service.py.
-Keeps the public ask_ai(prompt) function unchanged.
-Gemini is tried first; Groq is used as fallback.
-"""
+import os
+from typing import Optional
 
 from google import genai
 from groq import Groq
-
+from groq import Groq
 from .config import GEMINI_API_KEY, GROQ_API_KEY
 
 
-# Current Gemini model from Google's Gemini API documentation.
+# ------------------------------------------------------------------
+# Models
+# ------------------------------------------------------------------
+
 GEMINI_MODEL = "gemini-3.8-flash"
 GROQ_MODEL = "openai/gpt-oss-20b"
 
+
+# ------------------------------------------------------------------
+# System prompt
+# ------------------------------------------------------------------
 
 SYSTEM_PROMPT = """
 You are WeatherGPT, the single AI assistant for a weather website in India.
@@ -23,107 +27,325 @@ Use the weather information supplied by the application as the primary source
 for weather measurements and forecasts.
 
 RULES:
+
 1. Never invent temperature, rainfall, humidity, wind, visibility, wave height,
    cloud base, pressure, or any other measurement.
+
 2. Clearly distinguish current observations from forecasts.
-3. Never present a forecast as guaranteed and never claim 100% certainty.
-4. If a required value is missing, say it is unavailable.
-5. Never confuse precipitation probability with rainfall amount.
-6. Never confuse wind speed with wind gusts.
-7. Answer in the exact language requested by the user. Supported languages:
-   English, Hindi, Tamil, Telugu, Kannada, Malayalam, Bengali and Marathi.
-8. For dangerous weather, recommend checking official meteorological alerts.
-9. Agriculture: consider crop, growth stage, rainfall, humidity, temperature,
-   wind, irrigation and weather-related disease pressure. Do not diagnose plant
-   disease from weather data alone.
-10. Travel and outdoor work: consider rain, thunderstorms, visibility, wind,
-    heat and timing.
-11. Aviation: never give flight clearance. Use only available aviation-relevant
-    observations such as visibility, wind, gusts, cloud base and thunderstorms.
-12. Marine: never invent wave height or sea-state information.
-13. Answer the user's actual question first and keep the advice practical.
+
+3. Never present a forecast as guaranteed.
+
+4. Never claim 100% certainty.
+
+5. If a required value is missing, say it is unavailable.
+
+6. Never confuse precipitation probability with rainfall amount.
+
+7. Never confuse wind speed with wind gusts.
+
+8. Answer in the exact language requested by the user.
+
+Supported languages:
+English, Hindi, Tamil, Telugu, Kannada, Malayalam, Bengali and Marathi.
+
+9. For dangerous weather, recommend checking official meteorological alerts.
+
+10. Agriculture:
+consider crop, growth stage, rainfall, humidity, temperature, wind,
+irrigation and weather-related disease pressure.
+
+Do not diagnose plant disease from weather data alone.
+
+11. Travel and outdoor work:
+consider rain, thunderstorms, visibility, wind, heat and timing.
+
+12. Aviation:
+never give flight clearance.
+
+Use only available aviation-relevant observations such as visibility,
+wind, gusts, cloud base and thunderstorms.
+
+13. Marine:
+never invent wave height or sea-state information.
+
+14. Answer the user's actual question first.
+
+15. Keep answers practical and concise.
+
+16. The structured weather data provided by the application is authoritative.
+Do not replace it with guessed or remembered weather data.
 """.strip()
 
 
+# ------------------------------------------------------------------
+# API clients
+# ------------------------------------------------------------------
+
 gemini_client = None
-if GEMINI_API_KEY:
-    gemini_client = genai.Client(api_key=GEMINI_API_KEY)
-
-
 groq_client = None
+
+
+def _clean_key(value) -> str:
+    """Safely clean an environment/config value."""
+
+    if value is None:
+        return ""
+
+    return str(value).strip()
+
+
+GEMINI_API_KEY = _clean_key(GEMINI_API_KEY)
+GROQ_API_KEY = _clean_key(GROQ_API_KEY)
+
+
+# Gemini
+if GEMINI_API_KEY:
+
+    try:
+
+        gemini_client = genai.Client(
+            api_key=GEMINI_API_KEY
+        )
+
+        print("WeatherGPT: Gemini client initialized.")
+
+    except Exception as exc:
+
+        print(
+            "WeatherGPT: Gemini initialization failed: "
+            f"{type(exc).__name__}: {exc}"
+        )
+
+        gemini_client = None
+
+else:
+
+    print(
+        "WeatherGPT: GEMINI_API_KEY is not configured."
+    )
+
+
+# Groq
 if GROQ_API_KEY:
-    groq_client = Groq(api_key=GROQ_API_KEY)
+
+    try:
+
+        groq_client = Groq(
+            api_key=GROQ_API_KEY
+        )
+
+        print("WeatherGPT: Groq client initialized.")
+
+    except Exception as exc:
+
+        print(
+            "WeatherGPT: Groq initialization failed: "
+            f"{type(exc).__name__}: {exc}"
+        )
+
+        groq_client = None
+
+else:
+
+    print(
+        "WeatherGPT: GROQ_API_KEY is not configured."
+    )
 
 
-def ask_gemini(prompt: str):
+# ------------------------------------------------------------------
+# Gemini
+# ------------------------------------------------------------------
+
+def ask_gemini(prompt: str) -> Optional[str]:
+
     if not gemini_client:
         return None
 
     try:
+
         interaction = gemini_client.interactions.create(
+
             model=GEMINI_MODEL,
+
             system_instruction=SYSTEM_PROMPT,
+
             input=prompt,
+
             generation_config={
                 "temperature": 0.2,
                 "thinking_level": "low",
             },
         )
 
-        text = getattr(interaction, "output_text", None)
-        if text:
-            return str(text).strip()
+        text = getattr(
+            interaction,
+            "output_text",
+            None
+        )
 
-        print("Gemini returned an empty response.")
+        if text:
+
+            answer = str(text).strip()
+
+            if answer:
+                return answer
+
+        print(
+            "WeatherGPT: Gemini returned no text."
+        )
+
         return None
 
     except Exception as exc:
-        print(f"Gemini error: {type(exc).__name__}: {exc}")
+
+        print(
+            "WeatherGPT Gemini ERROR: "
+            f"{type(exc).__name__}: {exc}"
+        )
+
         return None
 
 
-def ask_groq(prompt: str):
+# ------------------------------------------------------------------
+# Groq
+# ------------------------------------------------------------------
+
+def ask_groq(prompt: str) -> Optional[str]:
+
     if not groq_client:
         return None
 
     try:
+
         response = groq_client.chat.completions.create(
+
             model=GROQ_MODEL,
+
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": prompt},
+
+                {
+                    "role": "system",
+                    "content": SYSTEM_PROMPT,
+                },
+
+                {
+                    "role": "user",
+                    "content": prompt,
+                },
             ],
+
             temperature=0.2,
+
             max_completion_tokens=2048,
         )
 
-        text = response.choices[0].message.content
-        if text:
-            return str(text).strip()
+        if not response.choices:
+            print(
+                "WeatherGPT: Groq returned no choices."
+            )
+            return None
 
-        print("Groq returned an empty response.")
+        message = response.choices[0].message
+
+        text = getattr(
+            message,
+            "content",
+            None
+        )
+
+        if text:
+
+            answer = str(text).strip()
+
+            if answer:
+                return answer
+
+        print(
+            "WeatherGPT: Groq returned empty text."
+        )
+
         return None
 
     except Exception as exc:
-        print(f"Groq error: {type(exc).__name__}: {exc}")
+
+        print(
+            "WeatherGPT Groq ERROR: "
+            f"{type(exc).__name__}: {exc}"
+        )
+
         return None
 
 
-def ask_ai(prompt: str):
-    if not GEMINI_API_KEY and not GROQ_API_KEY:
+# ------------------------------------------------------------------
+# Main provider
+# ------------------------------------------------------------------
+
+def ask_ai(prompt: str) -> str:
+
+    if not prompt or not str(prompt).strip():
+
         raise RuntimeError(
-            "No AI API key configured. Set GEMINI_API_KEY or GROQ_API_KEY in .env."
+            "AI request was empty."
         )
 
-    answer = ask_gemini(prompt)
-    if answer:
-        return answer
 
-    answer = ask_groq(prompt)
-    if answer:
-        return answer
+    provider_errors = []
+
+
+    # --------------------------------------------------------------
+    # Gemini first
+    # --------------------------------------------------------------
+
+    if gemini_client:
+
+        answer = ask_gemini(
+            str(prompt)
+        )
+
+        if answer:
+            return answer
+
+        provider_errors.append(
+            "Gemini failed"
+        )
+
+    else:
+
+        provider_errors.append(
+            "Gemini is not configured"
+        )
+
+
+    # --------------------------------------------------------------
+    # Groq fallback
+    # --------------------------------------------------------------
+
+    if groq_client:
+
+        answer = ask_groq(
+            str(prompt)
+        )
+
+        if answer:
+            return answer
+
+        provider_errors.append(
+            "Groq failed"
+        )
+
+    else:
+
+        provider_errors.append(
+            "Groq is not configured"
+        )
+
+
+    # --------------------------------------------------------------
+    # Nothing worked
+    # --------------------------------------------------------------
 
     raise RuntimeError(
-        "Both AI providers failed. Check API keys, SDK versions, network access, "
-        "and provider quotas."
+        "WeatherGPT AI unavailable. "
+        + "; ".join(provider_errors)
+        + ". Check the API keys and installed SDK versions."
     )

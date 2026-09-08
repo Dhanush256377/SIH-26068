@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.services.location_service import get_location, search_location
+from app.services.location_service import  search_location
 
 router = APIRouter(
     prefix="/location",
