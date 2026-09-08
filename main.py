@@ -373,7 +373,7 @@ def _build_agent_weather_from_coordinates(
             current.get("precipitation"),
 
         "rain":
-            current.get("precipitation"),
+            current.get("rain"),
 
         "wind_speed":
             current.get("wind_speed_10m"),
@@ -1253,44 +1253,63 @@ def research_weather(
     resolution: str = "daily",
     model: str = "era5_land"
 ):
+    """
+    Historical weather data for the WeatherGPT Research Data Center.
+
+    Supported:
+        resolution = daily | hourly
+        model = era5_land | best_match
+
+    Data source:
+        Open-Meteo Historical Weather API
+
+    Models:
+        era5_land  -> ERA5-Land reanalysis
+        best_match -> Open-Meteo default historical model selection
+    """
+
+    # ------------------------------------------------------------
+    # 1. VALIDATE COORDINATES
+    # ------------------------------------------------------------
 
     if not (
-        -90 <= latitude <= 90
-        and
-        -180 <= longitude <= 180
+        -90.0 <= latitude <= 90.0
+        and -180.0 <= longitude <= 180.0
     ):
-
         raise HTTPException(
             status_code=400,
-            detail="Invalid coordinates"
+            detail="Invalid latitude or longitude."
         )
 
-    if resolution not in {
-        "daily",
-        "hourly"
-    }:
+    # ------------------------------------------------------------
+    # 2. NORMALIZE AND VALIDATE RESOLUTION
+    # ------------------------------------------------------------
 
+    resolution = (resolution or "daily").strip().lower()
+
+    if resolution not in {"daily", "hourly"}:
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Resolution must be daily or hourly"
-            )
+            detail="Resolution must be 'daily' or 'hourly'."
         )
 
-    if model not in {
-        "era5_land",
-        "best_match"
-    }:
+    # ------------------------------------------------------------
+    # 3. NORMALIZE AND VALIDATE MODEL
+    # ------------------------------------------------------------
 
+    model = (model or "era5_land").strip().lower()
+
+    if model not in {"era5_land", "best_match"}:
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Model must be era5_land or best_match"
-            )
+            detail="Model must be 'era5_land' or 'best_match'."
         )
+
+    # ------------------------------------------------------------
+    # 4. VALIDATE DATES
+    # ------------------------------------------------------------
 
     try:
-
         start_dt = datetime.strptime(
             start,
             "%Y-%m-%d"
@@ -1301,26 +1320,63 @@ def research_weather(
             "%Y-%m-%d"
         ).date()
 
-    except ValueError:
-
+    except (TypeError, ValueError):
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Dates must use YYYY-MM-DD format"
-            )
+            detail="Dates must use YYYY-MM-DD format."
         )
 
     if start_dt > end_dt:
+        raise HTTPException(
+            status_code=400,
+            detail="Start date must not be after end date."
+        )
 
+    # ------------------------------------------------------------
+    # 5. PREVENT FUTURE DATES
+    # ------------------------------------------------------------
+
+    today = datetime.utcnow().date()
+
+    if start_dt > today:
+        raise HTTPException(
+            status_code=400,
+            detail="Start date cannot be in the future."
+        )
+
+    if end_dt > today:
         raise HTTPException(
             status_code=400,
             detail=(
-                "Start date must not be after end date"
+                "End date cannot be in the future. "
+                f"The latest allowed date is {today.isoformat()}."
             )
         )
 
+    # ------------------------------------------------------------
+    # 6. LIMIT EXTREMELY LARGE HOURLY REQUESTS
+    # ------------------------------------------------------------
+
+    requested_days = (
+        end_dt - start_dt
+    ).days + 1
+
+    if resolution == "hourly" and requested_days > 366:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Hourly research data is limited to a maximum "
+                "of 366 days per request. Use Daily resolution "
+                "for longer research periods."
+            )
+        )
+
+    # ------------------------------------------------------------
+    # 7. CACHE KEY
+    # ------------------------------------------------------------
+
     key = (
-        "research-v2-full-fields",
+        "research-v3",
         round(latitude, 5),
         round(longitude, 5),
         start,
@@ -1329,44 +1385,18 @@ def research_weather(
         model
     )
 
-    cached = _research_cache_get(
-        key
-    )
+    cached = _research_cache_get(key)
 
     if cached is not None:
+        return {
+            "cached": True,
+            "source": "Open-Meteo Historical Weather API",
+            **cached
+        }
 
-        cached_series = (
-            cached.get("data", {})
-            .get(
-                "hourly"
-                if resolution == "hourly"
-                else "daily",
-                {}
-            )
-        )
-
-        required_fields = (
-            _RESEARCH_HOURLY_VARIABLES
-            if resolution == "hourly"
-            else _RESEARCH_DAILY_VARIABLES
-        )
-
-        if all(
-            field in cached_series
-            for field in required_fields
-        ):
-
-            return {
-                "cached": True,
-                "source":
-                    "Open-Meteo Historical Weather API",
-                **cached
-            }
-
-        _RESEARCH_WEATHER_CACHE.pop(
-            key,
-            None
-        )
+    # ------------------------------------------------------------
+    # 8. BUILD OPEN-METEO REQUEST
+    # ------------------------------------------------------------
 
     params = {
         "latitude": latitude,
@@ -1376,32 +1406,61 @@ def research_weather(
         "timezone": "auto"
     }
 
+    # ERA5-Land is explicitly selected.
+    #
+    # For best_match we do not send the models parameter,
+    # allowing Open-Meteo to select its default historical model.
+
     if model == "era5_land":
         params["models"] = "era5_land"
 
-    if resolution == "hourly":
+    # ------------------------------------------------------------
+    # 9. REQUEST DAILY OR HOURLY VARIABLES
+    # ------------------------------------------------------------
 
+    if resolution == "daily":
+        params["daily"] = ",".join(
+            _RESEARCH_DAILY_VARIABLES
+        )
+    else:
         params["hourly"] = ",".join(
             _RESEARCH_HOURLY_VARIABLES
         )
 
-    else:
+    # ------------------------------------------------------------
+    # 10. CALL OPEN-METEO
+    # ------------------------------------------------------------
 
-        params["daily"] = ",".join(
-            _RESEARCH_DAILY_VARIABLES
+    try:
+        response = _research_upstream_get(
+            params
+        )
+    except requests.RequestException as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Historical weather service is unavailable: "
+                f"{exc}"
+            )
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Unexpected historical weather service error: "
+                f"{exc}"
+            )
         )
 
-    response = _research_upstream_get(
-        params
-    )
+    # ------------------------------------------------------------
+    # 11. HANDLE RATE LIMIT
+    # ------------------------------------------------------------
 
     if response.status_code == 429:
-
         retry_after = response.headers.get(
             "Retry-After",
             "60"
         )
-
         raise HTTPException(
             status_code=429,
             detail=(
@@ -1409,22 +1468,23 @@ def research_weather(
                 f"Please wait about {retry_after} seconds."
             ),
             headers={
-                "Retry-After":
-                    str(retry_after)
+                "Retry-After": str(retry_after)
             }
         )
 
+    # ------------------------------------------------------------
+    # 12. HANDLE UPSTREAM HTTP ERRORS
+    # ------------------------------------------------------------
+
     if not response.ok:
-
         try:
-
-            reason = response.json().get(
-                "reason",
-                response.text[:300]
+            body = response.json()
+            reason = (
+                body.get("reason")
+                or body.get("message")
+                or response.text[:300]
             )
-
-        except Exception:
-
+        except (ValueError, TypeError):
             reason = response.text[:300]
 
         raise HTTPException(
@@ -1435,301 +1495,246 @@ def research_weather(
             )
         )
 
+    # ------------------------------------------------------------
+    # 13. PARSE JSON
+    # ------------------------------------------------------------
+
     try:
-
         data = response.json()
-
     except ValueError:
-
         raise HTTPException(
             status_code=502,
             detail=(
                 "Historical weather source "
-                "returned invalid JSON"
+                "returned invalid JSON."
+            )
+        )
+
+    # ------------------------------------------------------------
+    # 14. HANDLE OPEN-METEO API ERROR
+    # ------------------------------------------------------------
+
+    if not isinstance(data, dict):
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Historical weather source "
+                "returned an invalid response."
             )
         )
 
     if data.get("error"):
-
         raise HTTPException(
             status_code=502,
-            detail=data.get(
-                "reason",
-                "Historical weather source returned an error"
+            detail=(
+                data.get("reason")
+                or
+                "Historical weather source returned an error."
             )
         )
 
+    # ------------------------------------------------------------
+    # 15. SELECT DAILY / HOURLY SECTION
+    # ------------------------------------------------------------
+
     section = (
-        "hourly"
-        if resolution == "hourly"
-        else "daily"
+        "daily"
+        if resolution == "daily"
+        else "hourly"
     )
 
-    series = (
-        data.get(section)
-        or {}
-    )
+    series = data.get(section)
 
-    if not series.get("time"):
+    if not isinstance(series, dict):
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"No {resolution} historical data "
+                "was returned for this location and period."
+            )
+        )
 
+    # ------------------------------------------------------------
+    # 16. GET TIME SERIES
+    # ------------------------------------------------------------
+
+    times = series.get("time")
+
+    if not isinstance(times, list) or not times:
         raise HTTPException(
             status_code=404,
             detail=(
                 "No historical weather records "
-                "were returned."
+                "were returned for this location and period."
             )
         )
 
+    record_count = len(times)
+
     # ------------------------------------------------------------
-    # Repair missing daily values
+    # 17. VALIDATE ALL EXPECTED FIELDS
+    # ------------------------------------------------------------
+
+    expected_fields = (
+        _RESEARCH_DAILY_VARIABLES
+        if resolution == "daily"
+        else _RESEARCH_HOURLY_VARIABLES
+    )
+
+    for field in expected_fields:
+        values = series.get(field)
+
+        if values is None:
+            series[field] = [None] * record_count
+            continue
+
+        if not isinstance(values, list):
+            series[field] = [None] * record_count
+            continue
+
+        if len(values) < record_count:
+            series[field] = (
+                values
+                + [None] * (
+                    record_count - len(values)
+                )
+            )
+            continue
+
+        if len(values) > record_count:
+            series[field] = values[:record_count]
+
+    # ------------------------------------------------------------
+    # 18. DAILY RAINFALL NORMALIZATION
     # ------------------------------------------------------------
 
     if resolution == "daily":
-
-        daily_dates = (
-            series.get("time")
-            or []
+        precipitation_values = series.get(
+            "precipitation_sum"
+        )
+        rain_values = series.get(
+            "rain_sum"
         )
 
-        def missing_positions(
-            values
+        if not isinstance(
+            precipitation_values,
+            list
         ):
+            precipitation_values = [None] * record_count
 
-            if (
-                not isinstance(
-                    values,
-                    list
-                )
-                or
-                len(values)
-                != len(daily_dates)
-            ):
-
-                return list(
-                    range(
-                        len(daily_dates)
-                    )
-                )
-
-            return [
-                i
-                for i, value
-                in enumerate(values)
-                if value is None
-            ]
-
-        missing = {
-
-            name:
-                missing_positions(
-                    series.get(name)
-                )
-
-            for name
-            in _RESEARCH_DAILY_VARIABLES
-        }
-
-        missing = {
-            key: value
-            for key, value
-            in missing.items()
-            if value
-        }
-
-        if missing:
-
-            fallback_params = {
-
-                "latitude":
-                    latitude,
-
-                "longitude":
-                    longitude,
-
-                "start_date":
-                    start,
-
-                "end_date":
-                    end,
-
-                "timezone":
-                    "auto",
-
-                "daily":
-                    ",".join(
-                        _RESEARCH_DAILY_VARIABLES
-                    ),
-
-                "models":
-                    "era5"
-            }
-
-            fallback = (
-                _research_upstream_get(
-                    fallback_params
-                )
-            )
-
-            if fallback.ok:
-
-                try:
-
-                    fd = (
-                        fallback.json()
-                        .get("daily")
-                        or {}
-                    )
-
-                    ft = (
-                        fd.get("time")
-                        or []
-                    )
-
-                    fmap = {
-                        str(day): i
-                        for i, day
-                        in enumerate(ft)
-                    }
-
-                    for field, positions in (
-                        missing.items()
-                    ):
-
-                        src = (
-                            fd.get(field)
-                            or []
-                        )
-
-                        target = (
-                            series.get(field)
-                        )
-
-                        if (
-                            not isinstance(
-                                target,
-                                list
-                            )
-                            or
-                            len(target)
-                            != len(daily_dates)
-                        ):
-
-                            target = [
-                                None
-                            ] * len(
-                                daily_dates
-                            )
-
-                        for pos in positions:
-
-                            j = fmap.get(
-                                str(
-                                    daily_dates[pos]
-                                )
-                            )
-
-                            if (
-                                j is not None
-                                and
-                                j < len(src)
-                                and
-                                src[j] is not None
-                            ):
-
-                                target[pos] = src[j]
-
-                        series[field] = target
-
-                    data["daily"] = series
-
-                except Exception:
-                    pass
-
-        # --------------------------------------------------------
-        # Rain fallback
-        # --------------------------------------------------------
-
-        rain_values = (
-            series.get("rain_sum")
-        )
-
-        precip_values = (
-            series.get(
-                "precipitation_sum"
-            )
-        )
-
-        if (
-            isinstance(
-                rain_values,
-                list
-            )
-            and
-            isinstance(
-                precip_values,
-                list
-            )
+        if not isinstance(
+            rain_values,
+            list
         ):
+            rain_values = [None] * record_count
 
-            rain_values = list(
-                rain_values
+        normalized_rain = []
+
+        for i in range(record_count):
+            rain_value = (
+                rain_values[i]
+                if i < len(rain_values)
+                else None
+            )
+            precipitation_value = (
+                precipitation_values[i]
+                if i < len(precipitation_values)
+                else None
             )
 
-            for i in range(
-                min(
-                    len(rain_values),
-                    len(precip_values)
+            if rain_value is not None:
+                normalized_rain.append(
+                    rain_value
                 )
-            ):
+            elif precipitation_value is not None:
+                normalized_rain.append(
+                    precipitation_value
+                )
+            else:
+                normalized_rain.append(
+                    None
+                )
 
-                if (
-                    rain_values[i] is None
-                    and
-                    precip_values[i] is not None
-                ):
+        series["rain_sum"] = normalized_rain
 
-                    rain_values[i] = (
-                        precip_values[i]
-                    )
+    # ------------------------------------------------------------
+    # 19. SAVE CLEANED SERIES
+    # ------------------------------------------------------------
 
-            series["rain_sum"] = (
-                rain_values
-            )
+    data[section] = series
 
-            data["daily"] = series
+    # ------------------------------------------------------------
+    # 20. LOCATION INFORMATION
+    # ------------------------------------------------------------
 
-    value = {
-
-        "data":
-            data,
-
-        "resolution":
-            resolution,
-
-        "start":
-            start,
-
-        "end":
-            end,
-
-        "model":
-            model
+    location = {
+        "latitude": data.get(
+            "latitude",
+            latitude
+        ),
+        "longitude": data.get(
+            "longitude",
+            longitude
+        ),
+        "timezone": data.get(
+            "timezone"
+        ),
+        "timezone_abbreviation": data.get(
+            "timezone_abbreviation"
+        ),
+        "elevation": data.get(
+            "elevation"
+        )
     }
+
+    # ------------------------------------------------------------
+    # 21. BUILD FINAL RESULT
+    # ------------------------------------------------------------
+
+    result = {
+        "data": data,
+        "resolution": resolution,
+        "model": model,
+        "start": start,
+        "end": end,
+        "record_count": record_count,
+        "location": location,
+        "metadata": {
+            "source":
+                "Open-Meteo Historical Weather API",
+            "dataset":
+                (
+                    "ERA5-Land"
+                    if model == "era5_land"
+                    else "Open-Meteo Best Match"
+                ),
+            "resolution":
+                resolution,
+            "requested_start":
+                start,
+            "requested_end":
+                end
+        }
+    }
+
+    # ------------------------------------------------------------
+    # 22. SAVE TO CACHE
+    # ------------------------------------------------------------
 
     _research_cache_set(
         key,
-        value
+        result
     )
 
+    # ------------------------------------------------------------
+    # 23. RETURN RESPONSE
+    # ------------------------------------------------------------
+
     return {
-
-        "cached":
-            False,
-
+        "cached": False,
         "source":
             "Open-Meteo Historical Weather API",
-
-        **value
+        **result
     }
 
 
