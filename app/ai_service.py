@@ -4,7 +4,7 @@ from typing import Optional
 
 from google import genai
 from groq import Groq
-from groq import Groq
+
 from .config import GEMINI_API_KEY, GROQ_API_KEY
 
 
